@@ -9,9 +9,10 @@ from sklearn.model_selection import train_test_split
 import pandas as pd
 from env import StockEnv
 class DataUtil:
-    def __init__(self):
+    def __init__(self, mode):
         self.config = Config()
         self.env = StockEnv()
+        self.mode = mode
         
         
     def temporal_diff(self, d1, d2):
@@ -71,16 +72,26 @@ class DataUtil:
         feature_map[:,14] = feat_delta_vma10
         feature_map[:,15] = feat_vma20
         feature_map[:,16] = feat_delta_vma20
-        print(feature_map.shape)
-        print(feature_map[0])
-        return feature_map, date[1:]
+        return feature_map, date[1:], []
 
-        
-    def prepare_states(self):
+    def expand_to_2D_states(self, states):
+        labels = []
+        temporal_feature_map = np.zeros((len(states)-self.config.T-1, self.config.T, self.config.feature_size))
+        for i in range(len(states)-self.config.T):
+            temporal_feature_map[i,:,:] = states[i:i+self.config.T, :]
+            label = 1 if states[i+self.config.T,4]>self.config.greediness else 0
+    
+    def prepare_supervision_data(self, mode):
+        states, dates, labels = [], [], []
         for code in self.config.chosen_stocks:
             data_dict = self.env.get_all_data_of_code(code)
-            states = self.fi_observation(data_dict)
-    
+            substates, subdates, sublabels = self.fi_observation(data_dict)
+            substates = self.expand_to_2D_states(substates)
+            
+            states += substates
+            dates += subdates
+            labels += sublabels
+        return states, dates, labels
     
         
 if __name__ == '__main__':

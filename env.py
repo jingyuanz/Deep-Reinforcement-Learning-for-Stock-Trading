@@ -27,5 +27,8 @@ class StockEnv:
         data_dict['date'] = np.array(data.index)
         return data_dict
     
+    def get_reward(self, net, baseline):
+        return 0
+    
     
     
