@@ -1,16 +1,16 @@
 class Config:
     def __init__(self):
-        self.batch_size = 128
+        self.batch_size = 32
         self.hist_length = 400
         self.T = 17
         self.feature_size = 17
         self.gamma = 0.1
-        self.lstm_dim = 150
-        self.n_filter = 150
+        self.lstm_dim = 300
+        self.n_filter = 300
         self.filter_sizes = [2, 3, 5]
         self.dropout = 0.5
         self.lr = 3e-4
-        self.epochs = 15
+        self.epochs = 30
         self.l2_rate = 1e-3
         self.regression_model_path = './model/regressor.json'
         self.regression_weight_path = './model/regressor.h5'
@@ -23,3 +23,4 @@ class Config:
         self.greediness = 0.008
         self.start_date = '2015-01-01'
         self.chosen_stocks = ['sh']
+        

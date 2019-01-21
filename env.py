@@ -5,7 +5,7 @@ import pandas as pd
 
 class StockEnv:
     def __init__(self):
-        self.config = Config
+        self.config = Config()
 
     def sz50_code(self):
         codes = ts.get_sz50s()
@@ -19,7 +19,7 @@ class StockEnv:
         pass
 
     def get_all_data_of_code(self, code):
-        data = ts.get_hist_data(code, start='2018-01-01')
+        data = ts.get_hist_data(code, start=self.config.start_date)
         indices = list(data.columns)
         data_dict = {}
         for index in indices[:]:

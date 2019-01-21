@@ -14,7 +14,6 @@ class DataUtil:
         self.env = StockEnv()
         self.mode = mode
         
-        
     def temporal_diff(self, d1, d2):
         return (d1[1:]-d2[:-1])/d2[:-1]*100.0
     
@@ -23,7 +22,6 @@ class DataUtil:
     
     def fi_observation(self, data_dict):
         keys = data_dict.keys()
-        print(keys)
         open = data_dict['open']
         high = data_dict['high']
         close = data_dict['close']
@@ -72,32 +70,41 @@ class DataUtil:
         feature_map[:,14] = feat_delta_vma10
         feature_map[:,15] = feat_vma20
         feature_map[:,16] = feat_delta_vma20
-        return feature_map, date[1:], []
+        return feature_map, date[1:]
 
-    def expand_to_2D_states(self, states):
+    def convert_to_training_data(self, states):
         labels = []
-        temporal_feature_map = np.zeros((len(states)-self.config.T-1, self.config.T, self.config.feature_size))
-        for i in range(len(states)-self.config.T):
-            temporal_feature_map[i,:,:] = states[i:i+self.config.T, :]
-            label = 1 if states[i+self.config.T,4]>self.config.greediness else 0
+        if self.mode == 'classification':
+            # temporal_feature_map = np.zeros((len(states)-self.config.T-1, self.config.T, self.config.feature_size))
+            temporal_feature_map = []
+            for i in range(len(states)-self.config.T):
+                # print(i+self.config.T)
+                temporal_feature_map.append(states[i:i+self.config.T, :])
+                label = 1 if states[i+self.config.T,4]>self.config.greediness else 0
+                labels.append(label)
+        else:
+            return [],[]
+        
+        return temporal_feature_map, labels
     
-    def prepare_supervision_data(self, mode):
+    def prepare_supervision_data(self):
         states, dates, labels = [], [], []
         for code in self.config.chosen_stocks:
             data_dict = self.env.get_all_data_of_code(code)
-            substates, subdates, sublabels = self.fi_observation(data_dict)
-            substates = self.expand_to_2D_states(substates)
-            
+            substates, subdates = self.fi_observation(data_dict)
+            substates, sublabels = self.convert_to_training_data(substates)
+            subdates = subdates[self.config.T:]
             states += substates
-            dates += subdates
+            dates += np.ndarray.tolist(subdates)
             labels += sublabels
+        states = np.array(states)
+        dates = np.array(dates)
+        labels = np.array(labels)
+        print(states.shape, dates.shape, labels.shape)
+        print(np.mean(labels))
         return states, dates, labels
     
         
 if __name__ == '__main__':
-    du = DataUtil()
-    du.prepare_states()
-    # data = du.get_data_from_codes(du.sz50_code(), False)
-    # data = ts.get_hist_data('600519', start='2013-01-05')
-    # du.get_individual_data('600519')
-    # print(data)
+    du = DataUtil('classification')
+    du.prepare_supervision_data()
