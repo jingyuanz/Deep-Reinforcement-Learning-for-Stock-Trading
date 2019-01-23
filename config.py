@@ -5,10 +5,13 @@ class Config:
         self.T = 17
         self.feature_size = 17
         self.gamma = 0.1
+        self.MAX_ROUNDS = 50000
+        self.init_fund = 10000
+        self.actions = []
         self.lstm_dim = 300
         self.n_filter = 300
         self.filter_sizes = [2, 3, 5]
-        self.dropout = 0.5
+        self.dropout = 0.3
         self.lr = 3e-4
         self.epochs = 30
         self.l2_rate = 1e-3
@@ -21,6 +24,10 @@ class Config:
         self.train_data_path = 'data/train.data'
         self.test_data_path = 'data/test.data'
         self.greediness = 0.008
-        self.start_date = '2015-01-01'
+        self.start_date = '2013-01-01'
         self.chosen_stocks = ['sh']
+        self.MAX_POOL_SIZE = 5000
+        self.epsilon = 0.9
+        self.decay = 0.999
+        self.action_size = 11
         
