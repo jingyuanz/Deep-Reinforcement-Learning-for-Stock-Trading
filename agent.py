@@ -132,10 +132,11 @@ class QAgent:
     
     def train(self):
         state = self.env.get_initial_state()
-        for i in range(self.config.MAX_ROUNDS):
-            action = self.epsilon_greedy(state)
-            next_state, reward = self.env.step(action)
-            
+        for i in range(self.config.epochs):
+            for t in range(len(self.true_history)-1):
+                action = self.epsilon_greedy(state)
+                next_state, reward = self.env.step(action, t, self.fund)
+    
     
     
 class SupervisedAgent:

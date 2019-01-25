@@ -5,7 +5,7 @@ class Config:
         self.T = 17
         self.feature_size = 17
         self.gamma = 0.1
-        self.MAX_ROUNDS = 50000
+        self.MAX_ROUNDS = 1000
         self.init_fund = 10000
         self.actions = []
         self.lstm_dim = 300

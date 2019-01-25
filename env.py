@@ -9,6 +9,7 @@ class StockEnv:
         self.mode = mode
         self.history = self.prepare_supervision_data()
         
+        
     def sz50_code(self):
         codes = ts.get_sz50s()
         return np.array(codes)[:, 1]
@@ -30,16 +31,19 @@ class StockEnv:
         return data_dict
     
     #TODO
-    def get_reward(self, net, baseline):
+    def simulate_baseline(self, index_history):
         return 0
-    
+        
     
     #TODO
-    def step(self, action, t):
-        terminal = False
+    def get_reward(self, net, baseline):
+        return net-baseline
+    
+    #TODO
+    def step(self, action, t, fund):
         next_state = self.history[t+1]
-        reward = 0
-        return next_state, reward, terminal
+        reward = self.get_reward(fund, 0)
+        return next_state, reward
 
     def temporal_diff(self, d1, d2):
         return (d1[1:] - d2[:-1]) / d2[:-1] * 100.0
