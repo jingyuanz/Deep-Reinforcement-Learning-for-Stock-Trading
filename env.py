@@ -44,9 +44,10 @@ class StockEnv:
         return quant
         
     #TODO
-    def step(self, action, t):
+    def step(self, action_ind, t):
         next_state = self.history[t+1]
         baseline = self.retrive_baseline(t)
+        action = self.config.actions[action_ind]
         profit = self.get_action_profit(action, t)
         reward = self.get_reward(profit, baseline)
         return next_state, reward

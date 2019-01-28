@@ -134,8 +134,13 @@ class QAgent:
         state = self.env.get_initial_state()
         for i in range(self.config.epochs):
             for t in range(len(self.true_history)-1):
-                action = self.epsilon_greedy(state)
-                next_state, reward = self.env.step(action, t, self.fund)
+                action_ind = self.epsilon_greedy(state)
+                next_state, reward = self.env.step(action_ind, t)
+                self.add_to_pool(state, action_ind, next_state, reward)
+                state = next_state
+                if len(self.memory_pool) > 5*self.config.batch_size:
+                    self.train_by_replay()
+                
     
     
     
