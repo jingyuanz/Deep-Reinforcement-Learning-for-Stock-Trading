@@ -7,9 +7,9 @@ class StockEnv:
     def __init__(self, mode):
         self.config = Config()
         self.mode = mode
+        self.index_change = []
         self.history = self.prepare_supervision_data()
-        
-        
+
     def sz50_code(self):
         codes = ts.get_sz50s()
         return np.array(codes)[:, 1]
@@ -31,18 +31,24 @@ class StockEnv:
         return data_dict
     
     #TODO
-    def simulate_baseline(self, index_history):
-        return 0
+    def retrive_baseline(self, t):
+        return self.index_change[t]
+    
+    #TODO
+    def get_reward(self, profit, baseline):
+        return profit - max(0,baseline)
+    
+    def get_action_profit(self, action, t):
+        change = self.index_change[t]
+        quant = action * change
+        return quant
         
-    
     #TODO
-    def get_reward(self, net, baseline):
-        return net-baseline
-    
-    #TODO
-    def step(self, action, t, fund):
+    def step(self, action, t):
         next_state = self.history[t+1]
-        reward = self.get_reward(fund, 0)
+        baseline = self.retrive_baseline(t)
+        profit = self.get_action_profit(action, t)
+        reward = self.get_reward(profit, baseline)
         return next_state, reward
 
     def temporal_diff(self, d1, d2):
@@ -106,7 +112,6 @@ class StockEnv:
     def convert_to_training_data(self, states):
         labels = []
         temporal_feature_map = []
-
         if self.mode == 'classification':
             # temporal_feature_map = np.zeros((len(states)-self.config.T-1, self.config.T, self.config.feature_size))
             for i in range(len(states) - self.config.T):
@@ -119,6 +124,8 @@ class StockEnv:
             pass
         else:
             for i in range(len(states) - self.config.T):
+                change = states[i + self.config.T, 4]
+                self.index_change.append(change)
                 temporal_feature_map.append(states[i:i + self.config.T, :])
         return temporal_feature_map, labels
 

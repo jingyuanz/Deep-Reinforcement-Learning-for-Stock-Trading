@@ -7,7 +7,7 @@ class Config:
         self.gamma = 0.1
         self.MAX_ROUNDS = 1000
         self.init_fund = 10000
-        self.actions = []
+        self.actions = [0.0, 0.33, 0.66, 1.0]
         self.lstm_dim = 300
         self.n_filter = 300
         self.filter_sizes = [2, 3, 5]
