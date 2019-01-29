@@ -2,13 +2,14 @@ from config import Config
 import tushare as ts
 import numpy as np
 import pandas as pd
-
+import os
+import pickle
 class StockEnv:
     def __init__(self, mode):
         self.config = Config()
         self.mode = mode
         self.index_change = []
-        self.history = self.prepare_supervision_data()
+        self.history, self.dates, _ = self.prepare_supervision_data()
 
     def sz50_code(self):
         codes = ts.get_sz50s()
@@ -19,15 +20,24 @@ class StockEnv:
         return np.array(codes)
 
     def get_initial_state(self):
+        print("hist length: {}".format(len(self.history)))
         return self.history[0]
 
     def get_all_data_of_code(self, code):
+        fnames = os.listdir('./data')
+        if 'data.pkl' in fnames:
+            print('loading pickle')
+            with open('data/data.pkl','rb') as f:
+                data_dict = pickle.load(f)
+                return data_dict
         data = ts.get_hist_data(code, start=self.config.start_date)
         indices = list(data.columns)
         data_dict = {}
         for index in indices[:]:
             data_dict[index] = np.array(data[index])
         data_dict['date'] = np.array(data.index)
+        with open('data/data.pkl','wb') as f:
+            pickle.dump(data_dict, f)
         return data_dict
     
     #TODO

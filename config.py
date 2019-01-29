@@ -11,6 +11,7 @@ class Config:
         self.lstm_dim = 300
         self.n_filter = 300
         self.filter_sizes = [2, 3, 5]
+        self.MIN_POOL_SIZE = 5*self.batch_size
         self.dropout = 0.3
         self.lr = 3e-4
         self.epochs = 30
@@ -29,5 +30,5 @@ class Config:
         self.MAX_POOL_SIZE = 5000
         self.epsilon = 0.9
         self.decay = 0.999
-        self.action_size = 11
+        self.action_size = len(self.actions)
         

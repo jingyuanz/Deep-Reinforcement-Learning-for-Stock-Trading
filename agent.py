@@ -14,7 +14,11 @@ import tensorflow as tf
 from sklearn.metrics import roc_auc_score
 from keras.callbacks import Callback
 from numpy.random import choice
+# from sklearn.utils.random import choice
 from collections import OrderedDict
+import os
+from keras.models import load_model, save_model
+# os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 def auc(y_true, y_pred):
     # roc = roc_auc_score(y_true, y_pred)
@@ -58,7 +62,7 @@ class QAgent:
     def __init__(self, mode='q'):
         self.config = Config()
         self.fund = self.config.init_fund
-        self.memory_pool = OrderedDict()
+        self.memory_pool = []
         self.agent_mode = mode
         self.agent_model = self.build_q_model()
         self.env = StockEnv(mode)
@@ -69,8 +73,8 @@ class QAgent:
         with open('./model/' + mode + '.json', 'w') as f:
             f.write(json)
         self.check = keras.callbacks.ModelCheckpoint('./model/' + self.agent_mode + '.h5',
-                                                monitor='val_loss', verbose=1,
-                                                save_best_only=True, save_weights_only=True, mode='auto', period=1)
+                                                monitor='loss', verbose=1,
+                                                save_best_only=False, save_weights_only=True, mode='auto', period=1)
 
     def build_q_model(self):
         state = Input((self.config.T, self.config.feature_size))
@@ -88,7 +92,7 @@ class QAgent:
             lstm_out = lstm(bn)
             lstm_outs.append(lstm_out)
     
-        concat_features = Concatenate(lstm_outs)
+        concat_features = Concatenate()(lstm_outs)
         prelu1 = PReLU()(concat_features)
         dense1 = Dense(300)(prelu1)
         drop1 = Dropout(self.config.dropout)(dense1)
@@ -100,7 +104,7 @@ class QAgent:
         return model
     
     def add_to_pool(self, state, action, reward, next_state):
-        self.memory_pool[self.t] = (self.t, state, action, reward, next_state)
+        self.memory_pool.append((state, action, reward, next_state))
         self.t += 1
     
     def epsilon_greedy(self, state):
@@ -109,40 +113,67 @@ class QAgent:
         if is_random:
             random_action = choice(range(self.config.action_size))
             return random_action
-        action = self.agent_model.predict(state)
+        action = self.agent_model.predict(np.array([state]))
         greedy_action = np.argmax(action)
         return greedy_action
     
     def train_by_replay(self):
-        memory_batch = choice([self.memory_pool.items()[:-1]], size=self.config.batch_size, replace=False)
+        indices = range(len(self.memory_pool))
+        chosen_indices = choice(indices, size=self.config.batch_size, replace=False)
+        memory_batch = np.array(self.memory_pool)[chosen_indices]
+        # print(memory_batch[0])
         states, targets = [], []
         tmp_model = keras.models.clone_model(self.agent_model)
         tmp_model.set_weights(self.agent_model.get_weights())
         for mem in memory_batch:
-            state = mem[1]
-            action = mem[2]
-            reward = mem[3]
-            next_state = mem[4]
-            value = reward + (self.config.gamma*np.max(tmp_model.predict(next_state)[0]))
-            target = self.agent_model.predict(state)[0]
+            state = mem[0]
+            action = mem[1]
+            reward = mem[2]
+            next_state = mem[3]
+            # print(next_state, next_state.shape)
+            value = reward + (self.config.gamma*np.max(tmp_model.predict(np.array([next_state]))[0]))
+            target = self.agent_model.predict(np.array([state]))[0]
             target[action] = value
             states.append(state)
             targets.append(target)
-        self.agent_model.fit(states, targets, batch_size=self.config.batch_size, callbacks=self.check)
+        states = np.array(states)
+        targets = np.array(targets)
+        # print(states.shape, targets.shape)
+        self.agent_model.fit(states, targets, batch_size=self.config.batch_size, verbose=0, callbacks=[self.check])
     
     def train(self):
-        state = self.env.get_initial_state()
         for i in range(self.config.epochs):
-            for t in range(len(self.true_history)-1):
+            state = self.env.get_initial_state()
+            print("epochs: {}/{}".format(i, self.config.epochs))
+            for t in range(len(self.env.history)-1):
+                if t%10 == 0:
+                    print("\tstep: {}/{}".format(t, len(self.env.history)-1))
                 action_ind = self.epsilon_greedy(state)
                 next_state, reward = self.env.step(action_ind, t)
-                self.add_to_pool(state, action_ind, next_state, reward)
+                self.add_to_pool(state, action_ind, reward, next_state)
+                if len(self.memory_pool)>self.config.MAX_POOL_SIZE:
+                    self.memory_pool = self.memory_pool[-self.config.MAX_POOL_SIZE:]
                 state = next_state
-                if len(self.memory_pool) > 5*self.config.batch_size:
+                if len(self.memory_pool) > self.config.MIN_POOL_SIZE and t%self.config.batch_size==0:
                     self.train_by_replay()
                 
+    def evaluate(self):
+        state = self.env.get_initial_state()
+        for t in range(len(self.env.history)-1):
+            # if t%10 == 0:
+            #     print("\tstep: {}/{}".format(t, len(self.env.history)-1))
+            action_ind = self.epsilon_greedy(state)
+            next_state, reward = self.env.step(action_ind, t)
+            self.add_to_pool(state, action_ind, reward, next_state)
+            if len(self.memory_pool)>self.config.MAX_POOL_SIZE:
+                self.memory_pool = self.memory_pool[-self.config.MAX_POOL_SIZE:]
+            state = next_state
+            if len(self.memory_pool) > self.config.MIN_POOL_SIZE and t%self.config.batch_size==0:
+                self.train_by_replay()
     
-    
+    def load_trained_agent_model(self, json_path, weights_path):
+        self.agent_model = load_model()
+        
     
 class SupervisedAgent:
     def __init__(self, mode='classification'):
