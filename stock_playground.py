@@ -7,4 +7,4 @@ from config import Config
 
 qagent = QAgent()
 # qagent.train()
-qagent.evaluate()
+qagent.evaluate(random=True, baseline=True, agent=True)

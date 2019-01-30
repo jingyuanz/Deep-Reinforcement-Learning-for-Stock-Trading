@@ -18,6 +18,8 @@ from numpy.random import choice
 from collections import OrderedDict
 import os
 from keras.models import load_model, save_model, model_from_json
+from matplotlib.pyplot import plot
+from matplotlib import pyplot as plt
 # os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 def auc(y_true, y_pred):
@@ -26,6 +28,13 @@ def auc(y_true, y_pred):
     auc = tf.metrics.auc(y_true, y_pred)[1]
     K.get_session().run(tf.local_variables_initializer())
     return auc
+
+def plot_regression_test(x, Y):
+    lenY = len(Y)
+    colors = ['red','green','blue','yellow'][:lenY]
+    for y,color in list(zip(Y,colors)):
+        plot(x, y, color=color)
+    plt.show()
 
 class roc_callback(Callback):
     def __init__(self,training_data,validation_data):
@@ -159,44 +168,57 @@ class QAgent:
                 if len(self.memory_pool) > self.config.MIN_POOL_SIZE and t%self.config.batch_size==0:
                     self.train_by_replay()
                 
-    def evaluate(self):
+    def evaluate(self, agent=True, baseline=True, random=True):
         self.load_trained_agent_model(self.config.q_json, self.config.q_weights)
+        FUND = 100000
+
         baseline_fund = 100000
         random_fund = 100000
         agent_fund = 100000
-        self.config.epsilon = 0.0
+        
+        baseline_trace = []
+        random_trace = []
+        agent_trace = []
+        states = self.env.history[:-1]
+        action_probs = self.agent_model.predict(np.array(states), batch_size=128, verbose=1)
+        print(action_probs.shape)
+        actions = np.argmax(action_probs, axis=-1)
         for t in range(len(self.env.history)-1):
-            state = self.env.history[t]
-            # if t%10 == 0:
-            #     print("\tstep: {}/{}".format(t, len(self.env.history)-1))
-            action_ind = self.epsilon_greedy(state)
-            random_act = choice(self.config.actions)
-            random_buy = random_act * random_fund
-            action = self.config.actions[action_ind]
-            buy = action*agent_fund
             change = self.env.index_change[t]
             # print(change)
-            buy_return = (1.0+change/100) * buy
-            random_buy_return = (1.0+change/100) * random_buy
-            remain = agent_fund - buy
-            random_remain = random_fund - random_buy
-            agent_fund = remain + buy_return
-            random_fund = random_remain + random_buy_return
-            baseline_fund *= (1.0+change/100)
-            print("Step : {}/{}".format(t, len(self.env.history)-1))
-            print("\tagent chose action: {},   agent fund: {}".format(action, agent_fund))
-            print("\tidiot random agent fund: {}".format(random_fund))
-            print("\tbaseline func: {}".format(baseline_fund))
+            print("Step : {}/{}, change: {}%".format(t, len(self.env.history)-1, change))
+            
+            if agent:
+                action = self.config.actions[actions[t]]
+                buy = action*min(FUND, agent_fund)
+                buy_return = (1.0+change/100) * buy
+                remain = agent_fund - buy
+                agent_fund = remain + buy_return
+                agent_trace.append(agent_fund)
+                print("\tagent chose action: {},   agent fund: {}".format(action, agent_fund))
+            if random:
+                random_act = choice(self.config.actions)
+                random_buy = random_act * random_fund
+                random_buy_return = (1.0+change/100) * random_buy
+                random_remain = random_fund - random_buy
+                random_fund = random_remain + random_buy_return
+                random_trace.append(random_fund)
+                print("\tidiot random agent fund: {}".format(random_fund))
+            if baseline:
+                baseline_fund *= (1.0+change/100)
+                baseline_trace.append(baseline_fund)
+                print("\tbaseline func: {}".format(baseline_fund))
             print()
-            
-            
-            # next_state, reward = self.env.step(action_ind, t)
-            # self.add_to_pool(state, action_ind, reward, next_state)
-            # if len(self.memory_pool)>self.config.MAX_POOL_SIZE:
-            #     self.memory_pool = self.memory_pool[-self.config.MAX_POOL_SIZE:]
-            # state = next_state
-            # if len(self.memory_pool) > self.config.MIN_POOL_SIZE and t%self.config.batch_size==0:
-            #     self.train_by_replay()
+        Y = []
+        x = range(len(self.env.history)-1)
+        if baseline_trace:
+            Y.append(baseline_trace)
+        if random_trace:
+            Y.append(random_trace)
+        if agent_trace:
+            Y.append(agent_trace)
+        
+        plot_regression_test(x, Y)
     
     def load_trained_agent_model(self, json_path, weights_path):
         with open(json_path, 'r', encoding='utf-8') as f:
