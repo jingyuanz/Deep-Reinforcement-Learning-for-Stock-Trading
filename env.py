@@ -10,6 +10,7 @@ class StockEnv:
         self.mode = mode
         self.index_change = []
         self.history, self.dates, _ = self.prepare_supervision_data()
+        print(np.array(self.index_change).shape)
 
     def sz50_code(self):
         codes = ts.get_sz50s()
@@ -130,12 +131,12 @@ class StockEnv:
                 temporal_feature_map.append(states[i:i + self.config.T, :])
                 label = 1 if states[i + self.config.T, 4] > self.config.greediness else 0
                 labels.append(label)
-
         elif self.mode == 'regression':
             pass
         else:
             for i in range(len(states) - self.config.T):
                 change = states[i + self.config.T, 4]
+                # print(change)
                 self.index_change.append(change)
                 temporal_feature_map.append(states[i:i + self.config.T, :])
         return temporal_feature_map, labels

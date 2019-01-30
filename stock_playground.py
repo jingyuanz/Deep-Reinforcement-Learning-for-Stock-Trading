@@ -6,4 +6,5 @@ from config import Config
 # agent.train()
 
 qagent = QAgent()
-qagent.train()
+# qagent.train()
+qagent.evaluate()

@@ -18,6 +18,8 @@ class Config:
         self.l2_rate = 1e-3
         self.regression_model_path = './model/regressor.json'
         self.regression_weight_path = './model/regressor.h5'
+        self.q_json = './model/q.json'
+        self.q_weights = './model/q.h5'
         self.result_path = 'data/results.txt'
         self.final_round_model_path = 'model/final.model'
         self.val_best_model_path = 'model/val.model'

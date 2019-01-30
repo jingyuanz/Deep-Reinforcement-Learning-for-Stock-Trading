@@ -17,7 +17,7 @@ from numpy.random import choice
 # from sklearn.utils.random import choice
 from collections import OrderedDict
 import os
-from keras.models import load_model, save_model
+from keras.models import load_model, save_model, model_from_json
 # os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 def auc(y_true, y_pred):
@@ -70,9 +70,9 @@ class QAgent:
         self.agent_model.summary()
         self.t = 0
         json = self.agent_model.to_json()
-        with open('./model/' + mode + '.json', 'w') as f:
+        with open(self.config.q_json, 'w') as f:
             f.write(json)
-        self.check = keras.callbacks.ModelCheckpoint('./model/' + self.agent_mode + '.h5',
+        self.check = keras.callbacks.ModelCheckpoint(self.config.q_weights,
                                                 monitor='loss', verbose=1,
                                                 save_best_only=False, save_weights_only=True, mode='auto', period=1)
 
@@ -114,7 +114,9 @@ class QAgent:
             random_action = choice(range(self.config.action_size))
             return random_action
         action = self.agent_model.predict(np.array([state]))
+        # print(action)
         greedy_action = np.argmax(action)
+        # print(greedy_action)
         return greedy_action
     
     def train_by_replay(self):
@@ -158,21 +160,50 @@ class QAgent:
                     self.train_by_replay()
                 
     def evaluate(self):
-        state = self.env.get_initial_state()
+        self.load_trained_agent_model(self.config.q_json, self.config.q_weights)
+        baseline_fund = 100000
+        random_fund = 100000
+        agent_fund = 100000
+        self.config.epsilon = 0.0
         for t in range(len(self.env.history)-1):
+            state = self.env.history[t]
             # if t%10 == 0:
             #     print("\tstep: {}/{}".format(t, len(self.env.history)-1))
             action_ind = self.epsilon_greedy(state)
-            next_state, reward = self.env.step(action_ind, t)
-            self.add_to_pool(state, action_ind, reward, next_state)
-            if len(self.memory_pool)>self.config.MAX_POOL_SIZE:
-                self.memory_pool = self.memory_pool[-self.config.MAX_POOL_SIZE:]
-            state = next_state
-            if len(self.memory_pool) > self.config.MIN_POOL_SIZE and t%self.config.batch_size==0:
-                self.train_by_replay()
+            random_act = choice(self.config.actions)
+            random_buy = random_act * random_fund
+            action = self.config.actions[action_ind]
+            buy = action*agent_fund
+            change = self.env.index_change[t]
+            # print(change)
+            buy_return = (1.0+change/100) * buy
+            random_buy_return = (1.0+change/100) * random_buy
+            remain = agent_fund - buy
+            random_remain = random_fund - random_buy
+            agent_fund = remain + buy_return
+            random_fund = random_remain + random_buy_return
+            baseline_fund *= (1.0+change/100)
+            print("Step : {}/{}".format(t, len(self.env.history)-1))
+            print("\tagent chose action: {},   agent fund: {}".format(action, agent_fund))
+            print("\tidiot random agent fund: {}".format(random_fund))
+            print("\tbaseline func: {}".format(baseline_fund))
+            print()
+            
+            
+            # next_state, reward = self.env.step(action_ind, t)
+            # self.add_to_pool(state, action_ind, reward, next_state)
+            # if len(self.memory_pool)>self.config.MAX_POOL_SIZE:
+            #     self.memory_pool = self.memory_pool[-self.config.MAX_POOL_SIZE:]
+            # state = next_state
+            # if len(self.memory_pool) > self.config.MIN_POOL_SIZE and t%self.config.batch_size==0:
+            #     self.train_by_replay()
     
     def load_trained_agent_model(self, json_path, weights_path):
-        self.agent_model = load_model()
+        with open(json_path, 'r', encoding='utf-8') as f:
+            json = f.read()
+        self.agent_model = model_from_json(json)
+        self.agent_model.load_weights(weights_path)
+        
         
     
 class SupervisedAgent:
@@ -215,7 +246,6 @@ class SupervisedAgent:
         model = Model(inputs=[state], outputs=[out])
         # model.compile(optimizer=Nadam(lr=self.config.lr), loss=binary_crossentropy, metrics=['accuracy'])
         model.compile(optimizer=Nadam(lr=self.config.lr), loss=mean_squared_logarithmic_error)
-
         return model
     
     def build_classification_model(self):
