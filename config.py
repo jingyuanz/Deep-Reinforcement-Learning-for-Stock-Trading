@@ -33,4 +33,5 @@ class Config:
         self.epsilon = 0.9
         self.decay = 0.999
         self.action_size = len(self.actions)
-        
+        self.duel_json = './model/duel.json'
+        self.duel_weights = './model/duel.h5'

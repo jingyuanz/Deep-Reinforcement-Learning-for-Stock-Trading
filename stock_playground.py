@@ -1,4 +1,6 @@
-from agent import *
+from doubleQ_agent import *
+from dueling_agent import *
+from supervised_agent import *
 from config import Config
 
 
@@ -8,3 +10,7 @@ from config import Config
 qagent = QAgent()
 # qagent.train()
 qagent.evaluate(random=True, baseline=True, agent=True)
+
+duel_agent = DuelingAgent()
+# duel_agent.train()
+duel_agent.evaluate()
