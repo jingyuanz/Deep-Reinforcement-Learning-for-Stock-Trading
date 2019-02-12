@@ -7,9 +7,9 @@ from config import Config
 # agent = SupervisedAgent()
 # agent.train()
 
-qagent = QAgent()
+# qagent = QAgent()
 # qagent.train()
-qagent.evaluate(random=True, baseline=True, agent=True)
+# qagent.evaluate(random=True, baseline=True, agent=True)
 
 duel_agent = DuelingAgent()
 # duel_agent.train()

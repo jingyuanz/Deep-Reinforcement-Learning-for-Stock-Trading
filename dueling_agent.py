@@ -39,8 +39,8 @@ class DuelingAgent:
         # with open(self.config.q_json, 'w') as f:
         #     f.write(json)
         self.check = keras.callbacks.ModelCheckpoint(self.config.duel_weights,
-                                                     monitor='loss', verbose=1,
-                                                     save_best_only=False, save_weights_only=True, mode='auto',
+                                                     monitor='val_loss', verbose=1,
+                                                     save_best_only=True, save_weights_only=True, mode='auto',
                                                      period=1)
     
     def build_q_model(self, pooling='mean'):
@@ -110,20 +110,24 @@ class DuelingAgent:
         states, targets = [], []
         tmp_model = keras.models.clone_model(self.agent_model)
         tmp_model.set_weights(self.agent_model.get_weights())
-        for mem in memory_batch:
+        predict_next = tmp_model.predict(np.array([x[3] for x in memory_batch]), batch_size=self.config.batch_size)
+        predict_target = self.agent_model.predict(np.array([x[0] for x in memory_batch]), batch_size=self.config.batch_size)
+        print(predict_next.shape)
+        for ind, mem in enumerate(memory_batch):
+            next_qs = predict_next[ind]
+            target = predict_target[ind]
             state = mem[0]
             action = mem[1]
             reward = mem[2]
-            next_state = mem[3]
+            # next_state = mem[3]
             # print(np.array([next_state]).shape)
-            value = reward + (self.config.gamma * np.max(tmp_model.predict(np.array([next_state]))[0]))
-            target = self.agent_model.predict(np.array([state]))[0]
+            value = reward + (self.config.gamma * np.max(next_qs))
             target[action] = value
             states.append(state)
             targets.append(target)
         states = np.array(states)
         targets = np.array(targets)
-        self.agent_model.fit(states, targets, batch_size=self.config.batch_size, verbose=1, callbacks=[self.check])
+        self.agent_model.fit(states, targets, validation_split=0.2, batch_size=self.config.batch_size, verbose=1, callbacks=[self.check])
     
     def train(self):
         for i in range(self.config.epochs):
