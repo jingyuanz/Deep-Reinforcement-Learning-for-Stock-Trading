@@ -24,11 +24,11 @@ class StockEnv:
         print("hist length: {}".format(len(self.history)))
         return self.history[0]
 
-    def get_all_data_of_code(self, code):
+    def get_all_data_of_code(self, code, load=True):
         fnames = os.listdir('./data')
-        if 'data.pkl' in fnames:
+        if '{}.pkl'.format(code) in fnames and load:
             print('loading pickle')
-            with open('data/data.pkl','rb') as f:
+            with open('./data/{}.pkl'.format(code),'rb') as f:
                 data_dict = pickle.load(f)
                 return data_dict
         data = ts.get_hist_data(code, start=self.config.start_date)
@@ -37,7 +37,7 @@ class StockEnv:
         for index in indices[:]:
             data_dict[index] = np.array(data[index])
         data_dict['date'] = np.array(data.index)
-        with open('data/data.pkl','wb') as f:
+        with open('data/{}.pkl'.format(code),'wb') as f:
             pickle.dump(data_dict, f)
         return data_dict
     
@@ -51,7 +51,7 @@ class StockEnv:
     
     def get_action_profit(self, action, t):
         change = self.index_change[t]
-        quant = action * change
+        quant = action * (change - self.config.cost)
         return quant
         
     #TODO
@@ -70,7 +70,6 @@ class StockEnv:
         return (d1[1:] - d2[1:]) / d2[1:] * 100.0
 
     def fi_observation(self, data_dict):
-        keys = data_dict.keys()
         open = data_dict['open']
         high = data_dict['high']
         close = data_dict['close']
@@ -84,6 +83,7 @@ class StockEnv:
         vma10 = data_dict['v_ma10']
         vma20 = data_dict['v_ma20']
         date = data_dict['date']
+        print('last date: {}'.format(date[-1]))
         feature_map = np.zeros((len(open) - 1, 17))
         feat_open = self.temporal_diff(open, close)
         feat_high = self.diff(high, open)
@@ -140,13 +140,17 @@ class StockEnv:
                 self.index_change.append(change)
                 temporal_feature_map.append(states[i:i + self.config.T, :])
         return temporal_feature_map, labels
-
+    
     def prepare_supervision_data(self):
         states, dates, labels = [], [], []
+        # print(self.index_change)
         for code in self.config.chosen_stocks:
             data_dict = self.get_all_data_of_code(code)
             substates, subdates = self.fi_observation(data_dict)
             substates, sublabels = self.convert_to_training_data(substates)
+            # print(np.array(substates)[0:2,:,4])
+            # print(substates.shape)
+            # print(self.index_change[0:2])
             subdates = subdates[self.config.T:]
             states += substates
             dates += np.ndarray.tolist(subdates)
@@ -158,5 +162,24 @@ class StockEnv:
         print(np.mean(labels))
         return states, dates, labels
     
+    def get_data_today(self, code):
+        df = ts.get_realtime_quotes(code)
+        return df
+    
+    def append_state_today(self, data_dict, today_data):
+        open = today_data['open']
+        
+    
+    def prepare_prediction_data(self, code):
+        data_dict = self.get_all_data_of_code([code])
+        current_data = self.get_data_today(code)
+        new_data_dict = np.zeros_like(data_dict)
+        new_data_dict[:-1] = data_dict[1:]
+        
+        substates, subdates = self.fi_observation(data_dict)
+        
+        substates = np.array(substates)[-self.config.T:]
+        print(substates.shape)
+        return substates
     
     

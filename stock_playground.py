@@ -13,4 +13,5 @@ from config import Config
 
 duel_agent = DuelingAgent()
 # duel_agent.train()
-duel_agent.evaluate()
+duel_agent.evaluate(random=False, baseline=False)
+# duel_agent.predict()

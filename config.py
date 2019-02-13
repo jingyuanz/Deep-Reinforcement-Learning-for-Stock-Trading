@@ -15,7 +15,7 @@ class Config:
         self.MIN_POOL_SIZE = 5*self.batch_size
         self.dropout = 0.3
         self.lr = 3e-4
-        self.epochs = 3
+        self.epochs = 30
         self.l2_rate = 1e-3
         self.regression_model_path = './model/regressor.json'
         self.regression_weight_path = './model/regressor.h5'
@@ -29,9 +29,11 @@ class Config:
         self.test_data_path = 'data/test.data'
         self.greediness = 0.008
         self.start_date = '2013-01-01'
-        self.chosen_stocks = ['cyb']
+        self.chosen_stocks = ['sz50']
+        self.prediction_code = 'sz'
         self.MAX_POOL_SIZE = 5000
         self.epsilon = 0.9
+        self.cost = 0.15
         self.decay = 0.999
         self.action_size = len(self.actions)
         self.duel_json = './model/duel.json'

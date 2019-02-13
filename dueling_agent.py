@@ -157,7 +157,8 @@ class DuelingAgent:
         agent_trace = []
         states = self.env.history[:-1]
         action_probs = self.agent_model.predict(np.array(states), batch_size=128, verbose=1)
-        print(action_probs.shape)
+        total = len(self.env.history) - 1
+        error = 0
         actions = np.argmax(action_probs, axis=-1)
         for t in range(len(self.env.history) - 1):
             change = self.env.index_change[t]
@@ -165,16 +166,20 @@ class DuelingAgent:
             print("Step : {}/{}, change: {}%".format(t, len(self.env.history) - 1, change))
             if agent:
                 action = self.config.actions[actions[t]]
-                buy = action * min(FUND, agent_fund)
-                buy_return = (1.0 + change / 100) * buy
+                buy = action * agent_fund
+                buy_return = (1.0 + (change-self.config.cost) / 100) * buy
                 remain = agent_fund - buy
                 agent_fund = remain + buy_return
                 agent_trace.append(agent_fund)
-                print("\tagent chose action: {},   agent fund: {}".format(action, agent_fund))
+                if change < 0 < action:
+                    print(states[t][:,4], change)
+                    error += 1
+                print("action {}, buy {}, return {}, remain {}, fund {}".format(action, buy, buy_return, remain, agent_fund))
+                # print("\tagent chose action: {},   agent fund: {}".format(action, agent_fund))
             if random:
                 random_act = choice(self.config.actions)
                 random_buy = random_act * random_fund
-                random_buy_return = (1.0 + change / 100) * random_buy
+                random_buy_return = (1.0 + (change-self.config.cost) / 100) * random_buy
                 random_remain = random_fund - random_buy
                 random_fund = random_remain + random_buy_return
                 random_trace.append(random_fund)
@@ -184,6 +189,7 @@ class DuelingAgent:
                 baseline_trace.append(baseline_fund)
                 print("\tbaseline func: {}".format(baseline_fund))
             print()
+        print(error/total*1.0)
         Y = []
         x = range(len(self.env.history) - 1)
         if baseline_trace:
@@ -201,3 +207,9 @@ class DuelingAgent:
         self.agent_model = model_from_json(json)
         self.agent_model.load_weights(weights_path)
 
+    def predict(self):
+        code = self.config.prediction_code
+        state = self.env.prepare_prediction_data(code)
+        action_probs = self.agent_model.predict(np.array([state]))
+        print(action_probs[0])
+        
