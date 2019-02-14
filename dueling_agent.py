@@ -32,8 +32,7 @@ class DuelingAgent:
         self.agent_mode = mode
         self.agent_model = self.build_q_model()
         self.env = StockEnv(mode)
-        self.true_history = self.env.prepare_supervision_data()
-        self.agent_model.summary()
+        # self.agent_model.summary()
         self.t = 0
         # json = self.agent_model.to_json()
         # with open(self.config.q_json, 'w') as f:
@@ -103,6 +102,7 @@ class DuelingAgent:
         return greedy_action
     
     def train_by_replay(self):
+        
         indices = range(len(self.memory_pool))
         chosen_indices = choice(indices, size=self.config.batch_size, replace=False)
         memory_batch = np.array(self.memory_pool)[chosen_indices]
@@ -130,6 +130,8 @@ class DuelingAgent:
         self.agent_model.fit(states, targets, validation_split=0.2, batch_size=self.config.batch_size, verbose=1, callbacks=[self.check])
     
     def train(self):
+        self.env.load_history()
+        print(len(self.env.index_change), self.env.index_change[-1])
         for i in range(self.config.epochs):
             state = self.env.get_initial_state()
             print("epochs: {}/{}".format(i, self.config.epochs))
@@ -146,7 +148,10 @@ class DuelingAgent:
                     self.train_by_replay()
     
     def evaluate(self, agent=True, baseline=True, random=True):
-        self.agent_model = self.build_q_model()
+        self.env.load_history()
+        # print(len(self.env.index_change), self.env.index_change[-1])
+        # import sys
+        # sys.exit(1)
         self.agent_model.load_weights(self.config.duel_weights)
         FUND = 100000
         baseline_fund = 100000
@@ -155,17 +160,23 @@ class DuelingAgent:
         baseline_trace = []
         random_trace = []
         agent_trace = []
-        states = self.env.history[:-1]
+        states = self.env.history[:]
         action_probs = self.agent_model.predict(np.array(states), batch_size=128, verbose=1)
-        total = len(self.env.history) - 1
+        total = len(self.env.history)
         error = 0
         actions = np.argmax(action_probs, axis=-1)
-        for t in range(len(self.env.history) - 1):
+        for t in range(len(self.env.history)):
             change = self.env.index_change[t]
             # print(change)
             print("Step : {}/{}, change: {}%".format(t, len(self.env.history) - 1, change))
             if agent:
-                action = self.config.actions[actions[t]]
+                # action_prob = action_probs[t]
+                # if action_prob[1] > action_prob[0] and action_prob[1]>-0.15:
+                #     action = 1
+                # else:
+                #     action = 0
+                action = actions[t]
+                action = self.config.actions[action]
                 buy = action * agent_fund
                 buy_return = (1.0 + (change-self.config.cost) / 100) * buy
                 remain = agent_fund - buy
@@ -191,25 +202,28 @@ class DuelingAgent:
             print()
         print(error/total*1.0)
         Y = []
-        x = range(len(self.env.history) - 1)
+        x = range(len(self.env.history))
         if baseline_trace:
             Y.append(baseline_trace)
         if random_trace:
             Y.append(random_trace)
         if agent_trace:
             Y.append(agent_trace)
-        
         plot_regression_test(x, Y)
     
-    def load_trained_agent_model(self, json_path, weights_path):
-        with open(json_path, 'r', encoding='utf-8') as f:
-            json = f.read()
-        self.agent_model = model_from_json(json)
+    def load_trained_agent_model(self, weights_path):
+        
         self.agent_model.load_weights(weights_path)
 
     def predict(self):
         code = self.config.prediction_code
+        self.load_trained_agent_model(self.config.duel_weights)
         state = self.env.prepare_prediction_data(code)
-        action_probs = self.agent_model.predict(np.array([state]))
-        print(action_probs[0])
+        state = np.array([state])
+        action_probs = self.agent_model.predict(state)[0]
+        print("Q values: <空仓:{},  全仓:{}>".format(action_probs[0],action_probs[1]))
+        if action_probs[0] >= action_probs[1]:
+            print("AI: 空仓")
+        else:
+            print("AI: 全仓")
         

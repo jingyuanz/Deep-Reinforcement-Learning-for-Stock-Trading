@@ -29,8 +29,8 @@ class Config:
         self.test_data_path = 'data/test.data'
         self.greediness = 0.008
         self.start_date = '2013-01-01'
-        self.chosen_stocks = ['sz50']
-        self.prediction_code = 'sz'
+        self.chosen_stocks = ['cyb','sz','sh','zxb','hs300','sz50']
+        self.prediction_code = 'sh'
         self.MAX_POOL_SIZE = 5000
         self.epsilon = 0.9
         self.cost = 0.15

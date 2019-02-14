@@ -9,12 +9,13 @@ class StockEnv:
         self.config = Config()
         self.mode = mode
         self.index_change = []
-        self.history, self.dates, _ = self.prepare_supervision_data()
-        print(np.array(self.index_change).shape)
 
     def sz50_code(self):
         codes = ts.get_sz50s()
         return np.array(codes)[:, 1]
+
+    def load_history(self):
+        self.history, self.dates, _ = self.prepare_supervision_data()
 
     def sz50_raw_code(self):
         codes = ts.get_sz50s()
@@ -31,6 +32,7 @@ class StockEnv:
             with open('./data/{}.pkl'.format(code),'rb') as f:
                 data_dict = pickle.load(f)
                 return data_dict
+        print(code)
         data = ts.get_hist_data(code, start=self.config.start_date)
         indices = list(data.columns)
         data_dict = {}
@@ -158,8 +160,6 @@ class StockEnv:
         states = np.array(states)
         dates = np.array(dates)
         labels = np.array(labels)
-        print(states.shape, dates.shape, labels.shape)
-        print(np.mean(labels))
         return states, dates, labels
     
     def get_data_today(self, code):
@@ -167,19 +167,62 @@ class StockEnv:
         return df
     
     def append_state_today(self, data_dict, today_data):
-        open = today_data['open']
+        open = float(today_data['open'][0])
+        high = float(today_data['high'][0])
+        close = float(today_data['price'][0])
+        low = float(today_data['low'][0])
+        preclose = float(today_data['pre_close'][0])
+        volume = float(today_data['volume'][0])
+        change = (float(close) - float(preclose))/float(preclose)*100.0
+        ma5 = data_dict['ma5']
+        ma10 = data_dict['ma10']
+        ma20 = data_dict['ma20']
+        vma5 = data_dict['v_ma5']
+        vma10 = data_dict['v_ma10']
+        vma20 = data_dict['v_ma20']
+        _5p = data_dict['close'][-5]
+        new_ma5 = (ma5 * 5.0 - _5p + close)/5.0
+        _10p = data_dict['close'][-10]
+        new_ma10 = (ma10 * 10.0 - _10p + close)/10.0
+        _20p = data_dict['close'][-20]
+        new_ma20 = (ma20 * 20.0 - _20p + close) / 20.0
         
+        _5v = data_dict['volume'][-5]
+        new_vma5 = (vma5 * 5.0 - _5v + volume)/5.0
+        _10v = data_dict['volume'][-10]
+        new_vma10 = (vma10 * 10.0 - _10v + volume) / 10.0
+        _20v = data_dict['volume'][-20]
+        new_vma20 = (vma20 * 20.0 - _20v + volume) / 20.0
+        # data_dict.append(np.array([open,high,close,low,volume,0,change,new_ma5,new_ma10,new_ma20,new_vma5,new_vma10,new_vma20]), ignore_index=True)
+        np.append(data_dict['open'], [open])
+        np.append(data_dict['high'], [high])
+        np.append(data_dict['close'], [close])
+        np.append(data_dict['low'], [low])
+        np.append(data_dict['volume'], [volume])
+        np.append(data_dict['price_change'], [change])
+        np.append(data_dict['p_change'], [change])
+        np.append(data_dict['ma5'], [new_ma5])
+        np.append(data_dict['ma10'], [new_ma10])
+        np.append(data_dict['ma20'], [new_ma20])
+        np.append(data_dict['v_ma5'], [new_vma5])
+        np.append(data_dict['v_ma10'], [new_vma10])
+        np.append(data_dict['v_ma20'], [new_vma20])
+        np.append(data_dict['date'],['today'])
+        return data_dict
+
+
     
     def prepare_prediction_data(self, code):
-        data_dict = self.get_all_data_of_code([code])
+        data_dict = self.get_all_data_of_code(code)
         current_data = self.get_data_today(code)
-        new_data_dict = np.zeros_like(data_dict)
-        new_data_dict[:-1] = data_dict[1:]
-        
-        substates, subdates = self.fi_observation(data_dict)
-        
+        new_data_dict = self.append_state_today(data_dict, current_data)
+        # new_data_dict[:-1] = data_dict[1:]
+        substates, subdates = self.fi_observation(new_data_dict)
         substates = np.array(substates)[-self.config.T:]
-        print(substates.shape)
+        # print(substates.shape)
+        # for i in range(17):
+        #     print(substates[:,i])
+        # print(substates.shape)
         return substates
     
     
