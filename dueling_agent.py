@@ -102,7 +102,6 @@ class DuelingAgent:
         return greedy_action
     
     def train_by_replay(self):
-        
         indices = range(len(self.memory_pool))
         chosen_indices = choice(indices, size=self.config.batch_size, replace=False)
         memory_batch = np.array(self.memory_pool)[chosen_indices]
@@ -119,8 +118,6 @@ class DuelingAgent:
             state = mem[0]
             action = mem[1]
             reward = mem[2]
-            # next_state = mem[3]
-            # print(np.array([next_state]).shape)
             value = reward + (self.config.gamma * np.max(next_qs))
             target[action] = value
             states.append(state)
@@ -131,21 +128,23 @@ class DuelingAgent:
     
     def train(self):
         self.env.load_history()
+        # chosen
         print(len(self.env.index_change), self.env.index_change[-1])
         for i in range(self.config.epochs):
-            state = self.env.get_initial_state()
-            print("epochs: {}/{}".format(i, self.config.epochs))
-            for t in range(len(self.env.history) - 1):
-                if t % 10 == 0:
-                    print("\tstep: {}/{}".format(t, len(self.env.history) - 1))
-                action_ind = self.epsilon_greedy(state)
-                next_state, reward = self.env.step(action_ind, t)
-                self.add_to_pool(state, action_ind, reward, next_state)
-                if len(self.memory_pool) > self.config.MAX_POOL_SIZE:
-                    self.memory_pool = self.memory_pool[-self.config.MAX_POOL_SIZE:]
-                state = next_state
-                if len(self.memory_pool) > self.config.MIN_POOL_SIZE and t % self.config.batch_size == 0:
-                    self.train_by_replay()
+            for code in self.config.chosen_stocks:
+                state = self.env.get_initial_state(code)
+                print("epochs: {}/{}".format(i, self.config.epochs))
+                for t in range(len(self.env.history) - 1):
+                    if t % 10 == 0:
+                        print("\tstep: {}/{}".format(t, len(self.env.history) - 1))
+                    action_ind = self.epsilon_greedy(state)
+                    next_state, reward = self.env.step(code, action_ind, t)
+                    self.add_to_pool(state, action_ind, reward, next_state)
+                    if len(self.memory_pool) > self.config.MAX_POOL_SIZE:
+                        self.memory_pool = self.memory_pool[-self.config.MAX_POOL_SIZE:]
+                    state = next_state
+                    if len(self.memory_pool) > self.config.MIN_POOL_SIZE and t % self.config.batch_size == 0:
+                        self.train_by_replay()
     
     def evaluate(self, agent=True, baseline=True, random=True):
         self.env.load_history()

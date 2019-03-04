@@ -31,8 +31,9 @@ class Config:
         self.start_date = '2013-01-01'
         self.chosen_stocks = ['cyb','sz','sh','zxb','hs300','sz50']
         self.prediction_code = 'sh'
-        self.MAX_POOL_SIZE = 5000
+        self.MAX_POOL_SIZE = 10000
         self.epsilon = 0.9
+        self.time_split = 0.8
         self.cost = 0.15
         self.decay = 0.999
         self.action_size = len(self.actions)

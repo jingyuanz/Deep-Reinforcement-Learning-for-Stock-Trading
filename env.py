@@ -4,11 +4,12 @@ import numpy as np
 import pandas as pd
 import os
 import pickle
+from collections import defaultdict
 class StockEnv:
     def __init__(self, mode):
         self.config = Config()
         self.mode = mode
-        self.index_change = []
+        self.index_change = defaultdict(list)
 
     def sz50_code(self):
         codes = ts.get_sz50s()
@@ -21,9 +22,9 @@ class StockEnv:
         codes = ts.get_sz50s()
         return np.array(codes)
 
-    def get_initial_state(self):
-        print("hist length: {}".format(len(self.history)))
-        return self.history[0]
+    def get_initial_state(self, code):
+        print("hist length: {}".format(len(self.history[code])))
+        return self.history[code][0]
 
     def get_all_data_of_code(self, code, load=True):
         fnames = os.listdir('./data')
@@ -44,24 +45,24 @@ class StockEnv:
         return data_dict
     
     #TODO
-    def retrive_baseline(self, t):
-        return self.index_change[t]
+    def retrive_baseline(self, code, t):
+        return self.index_change[code][t]
     
     #TODO
     def get_reward(self, profit, baseline):
         return profit - max(0,baseline)
     
-    def get_action_profit(self, action, t):
-        change = self.index_change[t]
+    def get_action_profit(self, code, action, t):
+        change = self.index_change[code][t]
         quant = action * (change - self.config.cost)
         return quant
         
     #TODO
-    def step(self, action_ind, t):
-        next_state = self.history[t+1]
-        baseline = self.retrive_baseline(t)
+    def step(self, code, action_ind, t):
+        next_state = self.history[code][t+1]
+        baseline = self.retrive_baseline(code, t)
         action = self.config.actions[action_ind]
-        profit = self.get_action_profit(action, t)
+        profit = self.get_action_profit(code, action, t)
         reward = self.get_reward(profit, baseline)
         return next_state, reward
 
@@ -123,7 +124,7 @@ class StockEnv:
         feature_map[:, 16] = feat_delta_vma20
         return feature_map, date[1:]
 
-    def convert_to_training_data(self, states):
+    def convert_to_training_data(self, code, states):
         labels = []
         temporal_feature_map = []
         if self.mode == 'classification':
@@ -139,7 +140,7 @@ class StockEnv:
             for i in range(len(states) - self.config.T):
                 change = states[i + self.config.T, 4]
                 # print(change)
-                self.index_change.append(change)
+                self.index_change[code].append(change)
                 temporal_feature_map.append(states[i:i + self.config.T, :])
         return temporal_feature_map, labels
     
@@ -149,7 +150,7 @@ class StockEnv:
         for code in self.config.chosen_stocks:
             data_dict = self.get_all_data_of_code(code)
             substates, subdates = self.fi_observation(data_dict)
-            substates, sublabels = self.convert_to_training_data(substates)
+            substates, sublabels = self.convert_to_training_data(code, substates)
             # print(np.array(substates)[0:2,:,4])
             # print(substates.shape)
             # print(self.index_change[0:2])
@@ -186,7 +187,6 @@ class StockEnv:
         new_ma10 = (ma10 * 10.0 - _10p + close)/10.0
         _20p = data_dict['close'][-20]
         new_ma20 = (ma20 * 20.0 - _20p + close) / 20.0
-        
         _5v = data_dict['volume'][-5]
         new_vma5 = (vma5 * 5.0 - _5v + volume)/5.0
         _10v = data_dict['volume'][-10]
